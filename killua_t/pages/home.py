@@ -84,52 +84,32 @@ class HomePage(ctk.CTkFrame):
                                   font=("Arial", 14))
         rate_label.pack(pady=(30, 10))
 
-        recent_title = ctk.CTkLabel(right_col, text="Recent Entries (Preview):",
+        recent_title = ctk.CTkLabel(right_col, text="Recent Entries (Last 5):",
                                     text_color="#c62828", font=("Arial", 12, "bold"))
         recent_title.pack(pady=(10, 6))
 
-        preview = ctk.CTkLabel(right_col, text="- Laptop: 2.5 hours → 0.25 kWh → ₱3.16\n- Aircon: 1 hour → 1.00 kWh → ₱12.64",
-                                justify="left", font=("Arial", 12))
-        preview.pack(anchor="w")
+        # Create a frame for the table
+        table_frame = ctk.CTkFrame(right_col, fg_color="transparent")
+        table_frame.pack(fill="both", expand=True, anchor="w")
+
+        # Table headers
+        header_frame = ctk.CTkFrame(table_frame, fg_color="transparent")
+        header_frame.pack(fill="x", pady=(0, 6))
+
+        ctk.CTkLabel(header_frame, text="Device", font=("Arial", 11, "bold"), width=100, anchor="w").pack(side="left", padx=(0, 20))
+        ctk.CTkLabel(header_frame, text="Duration (h)", font=("Arial", 11, "bold"), width=80, anchor="w").pack(side="left", padx=(0, 20))
+        ctk.CTkLabel(header_frame, text="kWh", font=("Arial", 11, "bold"), width=60, anchor="w").pack(side="left", padx=(0, 20))
+        ctk.CTkLabel(header_frame, text="Cost (₱)", font=("Arial", 11, "bold"), width=70, anchor="w").pack(side="left")
+
+        # Container for rows
+        self.recent_entries_frame = ctk.CTkFrame(table_frame, fg_color="transparent")
+        self.recent_entries_frame.pack(fill="both", expand=True)
 
     def on_show(self):
         # Update displayed username when page is shown
+        # (image loading is handled by main.show_frame, so don't load images here)
         try:
-            uid = getattr(self.controller, 'current_user_id', None)
             uname = getattr(self.controller, 'current_username', None)
-            # update profile pic label and username
-            if uid:
-                try:
-                    from .assets import load_image
-                    cursor = __import__('database.db', fromlist=['cursor']).cursor
-                    cursor.execute("SELECT profile_pic FROM users WHERE id = ?", (uid,))
-                    row = cursor.fetchone()
-                    if row and row[0]:
-                        img = load_image(row[0], size=(28, 28), circle=True)
-                        if img:
-                            self.profile_pic_lbl.configure(image=img, text='')
-                            self.profile_pic_lbl.image = img
-                    else:
-                        # No profile image for this user -> clear previous image
-                        try:
-                            self.profile_pic_lbl.configure(image=None, text='')
-                        except Exception:
-                            try:
-                                self.profile_pic_lbl.configure(text='')
-                            except Exception:
-                                pass
-                        try:
-                            if hasattr(self.profile_pic_lbl, 'image'):
-                                del self.profile_pic_lbl.image
-                        except Exception:
-                            pass
-                        try:
-                            if hasattr(self.profile_pic_lbl, 'image'):
-                                del self.profile_pic_lbl.image
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
             # update textual user label
             if uname:
                 self.user_label.configure(text=f"User: {uname}")
@@ -137,12 +117,111 @@ class HomePage(ctk.CTkFrame):
                 self.user_label.configure(text="Not logged in")
         except Exception:
             pass
+        
+        # Load recent entries for current user
+        self.load_recent_entries()
 
-    def logout(self):
-        # Clear controller user state and return to login page
+    def load_recent_entries(self):
+        """Load and display the 5 most recent entries for the current user."""
+        # Clear existing rows
+        for widget in self.recent_entries_frame.winfo_children():
+            widget.destroy()
+
         try:
-            self.controller.current_user_id = None
-            self.controller.current_username = None
-        except Exception:
-            pass
-        self.controller.show_frame("LoginPage")
+            uid = getattr(self.controller, 'current_user_id', None)
+            if not uid:
+                # No user logged in
+                no_data_label = ctk.CTkLabel(
+                    self.recent_entries_frame, 
+                    text="No user logged in", 
+                    font=("Arial", 11),
+                    text_color="gray"
+                )
+                no_data_label.pack(pady=10)
+                return
+
+            # Query the 5 most recent record items for this user
+            cursor = _db.cursor
+            cursor.execute("""
+                SELECT ri.device_name, 
+                       ri.duration_minutes, 
+                       ri.kwh_used, 
+                       ri.cost,
+                       r.date
+                FROM record_items ri
+                JOIN records r ON ri.record_id = r.id
+                WHERE r.user_id = ?
+                ORDER BY r.date DESC, ri.id DESC
+                LIMIT 5
+            """, (uid,))
+            
+            rows = cursor.fetchall()
+            
+            if not rows:
+                # No entries found
+                no_data_label = ctk.CTkLabel(
+                    self.recent_entries_frame, 
+                    text="No entries yet", 
+                    font=("Arial", 11),
+                    text_color="gray"
+                )
+                no_data_label.pack(pady=10)
+                return
+
+            # Display each row
+            for device_name, duration_minutes, kwh_used, cost, date in rows:
+                row_frame = ctk.CTkFrame(self.recent_entries_frame, fg_color="transparent")
+                row_frame.pack(fill="x", pady=4)
+
+                # Convert duration to hours
+                duration_hours = duration_minutes / 60 if duration_minutes else 0
+
+                # Device name
+                device_label = ctk.CTkLabel(
+                    row_frame, 
+                    text=device_name[:20], 
+                    font=("Arial", 10),
+                    width=100,
+                    anchor="w"
+                )
+                device_label.pack(side="left", padx=(0, 20))
+
+                # Duration (hours)
+                duration_label = ctk.CTkLabel(
+                    row_frame, 
+                    text=f"{duration_hours:.2f}", 
+                    font=("Arial", 10),
+                    width=80,
+                    anchor="w"
+                )
+                duration_label.pack(side="left", padx=(0, 20))
+
+                # kWh used
+                kwh_label = ctk.CTkLabel(
+                    row_frame, 
+                    text=f"{kwh_used:.2f}" if kwh_used else "0.00", 
+                    font=("Arial", 10),
+                    width=60,
+                    anchor="w"
+                )
+                kwh_label.pack(side="left", padx=(0, 20))
+
+                # Cost
+                cost_label = ctk.CTkLabel(
+                    row_frame, 
+                    text=f"₱{cost:.2f}" if cost else "₱0.00", 
+                    font=("Arial", 10),
+                    width=70,
+                    anchor="w"
+                )
+                cost_label.pack(side="left")
+
+        except Exception as e:
+            print(f"[HomePage] Error loading recent entries: {e}")
+            error_label = ctk.CTkLabel(
+                self.recent_entries_frame, 
+                text=f"Error loading entries", 
+                font=("Arial", 11),
+                text_color="red"
+            )
+            error_label.pack(pady=10)

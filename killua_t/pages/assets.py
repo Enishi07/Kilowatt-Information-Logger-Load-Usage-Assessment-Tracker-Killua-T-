@@ -1,8 +1,51 @@
 from customtkinter import CTkImage
-from PIL import Image
+from PIL import Image, ImageDraw
 import os
 
 _cache = {}
+
+# Global placeholder cache - gets cleared on user switch
+_placeholder_cache = {}
+
+def create_placeholder_image(size=(180, 180), text="?"):
+    """Get or create a placeholder image.
+    Stores in cache to reuse and release when needed."""
+    size_key = tuple(size)
+    if size_key in _placeholder_cache:
+        return _placeholder_cache[size_key]
+    
+    pil = Image.new('RGBA', size, color=(200, 200, 200, 255))
+    draw = ImageDraw.Draw(pil)
+    # Draw circle outline
+    draw.ellipse((0, 0, size[0]-1, size[1]-1), outline=(100, 100, 100), width=2)
+    # Draw text in center
+    try:
+        from PIL import ImageFont
+        font = ImageFont.load_default()
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+        x = (size[0] - text_width) // 2
+        y = (size[1] - text_height) // 2
+        draw.text((x, y), text, fill=(50, 50, 50), font=font)
+    except Exception:
+        pass
+    ctki = CTkImage(pil, size=size)
+    _placeholder_cache[size_key] = ctki
+    return ctki
+
+def clear_placeholder_cache():
+    """Clear placeholder image cache to release Tkinter's pyimage references."""
+    global _placeholder_cache
+    # Actually delete the Tkinter images by deleting the CTkImage objects
+    for img in _placeholder_cache.values():
+        try:
+            # CTkImage doesn't have explicit delete, but dereferencing helps
+            # The PIL Image will be garbage collected when CTkImage is deleted
+            pass
+        except Exception:
+            pass
+    _placeholder_cache.clear()
 
 def clear_image_cache(path=None):
     """Clear cached images for a specific path, or clear entire cache if path is None."""
@@ -14,6 +57,9 @@ def clear_image_cache(path=None):
         keys_to_remove = [k for k in _cache.keys() if k[0] == path]
         for k in keys_to_remove:
             del _cache[k]
+
+# Global placeholder cache - gets cleared on user switch
+_placeholder_cache = {}
 
 def get_logo(size=(28, 28)):
     """Return a CTkImage for the project's logo (PNG or JPG), cached by size."""

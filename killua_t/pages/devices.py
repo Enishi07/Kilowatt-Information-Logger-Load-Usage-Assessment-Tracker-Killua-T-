@@ -103,45 +103,8 @@ class DevicesPage(ctk.CTkFrame):
 
     def on_show(self):
         # Refresh when the page becomes visible
+        # (image loading is handled by main.show_frame, so don't load images here)
         try:
             self.refresh_devices()
-        except Exception:
-            pass
-        # update profile pic in top bar
-        try:
-            uid = getattr(self.controller, 'current_user_id', None)
-            if uid:
-                cursor.execute("SELECT profile_pic FROM users WHERE id = ?", (uid,))
-                row = cursor.fetchone()
-                profile_pic = row[0] if row else None
-                if profile_pic:
-                    from .assets import load_image
-                    img = load_image(profile_pic, size=(28, 28), circle=True)
-                    if img and hasattr(self.controller, 'frames'):
-                        # find top-right widget on Home page
-                        try:
-                            home = self.controller.frames.get('HomePage')
-                            if home and hasattr(home, 'profile_pic_lbl'):
-                                home.profile_pic_lbl.configure(image=img, text='')
-                                home.profile_pic_lbl.image = img
-                        except Exception:
-                            pass
-                else:
-                    # No profile image: clear widgets on all pages
-                    try:
-                        if hasattr(self.controller, 'frames'):
-                            for f in self.controller.frames.values():
-                                if hasattr(f, 'profile_pic_lbl'):
-                                    try:
-                                        f.profile_pic_lbl.configure(image=None, text='')
-                                    except Exception:
-                                        pass
-                                    try:
-                                        if hasattr(f.profile_pic_lbl, 'image'):
-                                            del f.profile_pic_lbl.image
-                                    except Exception:
-                                        pass
-                    except Exception:
-                        pass
         except Exception:
             pass

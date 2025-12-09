@@ -61,21 +61,7 @@ class ProfilePage(ctk.CTkFrame):
 
     def refresh(self):
         uid = getattr(self.controller, 'current_user_id', None)
-        print(f"[ProfilePage.refresh] uid={uid}")
         if not uid:
-            # clear any previous image
-            try:
-                self.img_label.configure(image=None, text="Not logged in")
-            except Exception:
-                try:
-                    self.img_label.configure(text="Not logged in")
-                except Exception:
-                    pass
-            try:
-                if hasattr(self.img_label, 'image'):
-                    del self.img_label.image
-            except Exception:
-                pass
             self.bio_entry.delete("1.0", "end")
             self.stats_label.configure(text="- Total kWh: 0\n- Most used device: -")
             return
@@ -83,37 +69,9 @@ class ProfilePage(ctk.CTkFrame):
         # Load profile pic from users.profile_pic
         cursor.execute("SELECT profile_pic, bio FROM users WHERE id = ?", (uid,))
         row = cursor.fetchone()
-        img_path = None
         bio = ""
         if row:
-            img_path = row[0]
             bio = row[1] or ""
-        print(f"[ProfilePage.refresh] img_path from DB = {repr(img_path)}")
-
-        # load and show image
-        img = None
-        if img_path:
-            img = load_image(img_path, size=(180, 180), circle=True)
-            print(f"[ProfilePage.refresh] loaded image: {img is not None}")
-        if img:
-            print(f"[ProfilePage.refresh] setting img_label to image")
-            self.img_label.configure(image=img, text="")
-            self.img_label.image = img
-        else:
-            print(f"[ProfilePage.refresh] clearing img_label (no image)")
-            # clear any previous image and show placeholder text
-            try:
-                self.img_label.configure(image=None, text="No Image")
-            except Exception:
-                try:
-                    self.img_label.configure(text="No Image")
-                except Exception:
-                    pass
-            try:
-                if hasattr(self.img_label, 'image'):
-                    del self.img_label.image
-            except Exception:
-                pass
 
         self.bio_entry.delete("1.0", "end")
         self.bio_entry.insert("end", bio)

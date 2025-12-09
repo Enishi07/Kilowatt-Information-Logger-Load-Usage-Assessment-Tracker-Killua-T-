@@ -26,6 +26,7 @@ class KilluaT(ctk.CTk):
         # `current_user_id` will be set after successful login/register
         self.current_user_id = None
         self.current_username = None
+        self._last_profile_pic = None  # Track previous profile_pic to detect changes
 
         # Initialize pages dict
         self.frames = {}
@@ -50,83 +51,89 @@ class KilluaT(ctk.CTk):
         # for the Profile page. This prevents the small image from
         # being applied to the large profile widget (causing it to look tiny).
         try:
-            from pages.assets import load_image, clear_image_cache
+            from pages.assets import load_image, create_placeholder_image, clear_placeholder_cache
             
             img_small = None
             img_large = None
             uid = getattr(self, 'current_user_id', None)
+            print(f"[show_frame] uid={uid}")
             
             if uid:
                 cursor = __import__('database.db', fromlist=['cursor']).cursor
                 cursor.execute("SELECT profile_pic FROM users WHERE id = ?", (uid,))
                 row = cursor.fetchone()
                 profile_pic = row[0] if row else None
+                print(f"[show_frame] profile_pic={repr(profile_pic)}")
+                
+                # Detect if profile_pic changed (e.g., from user with pic to user without)
+                profile_pic_changed = (profile_pic != self._last_profile_pic)
+                self._last_profile_pic = profile_pic
+                print(f"[show_frame] profile_pic_changed={profile_pic_changed}")
+                
+                # Clear placeholder cache if switching between users
+                if profile_pic_changed:
+                    clear_placeholder_cache()
+                    print(f"[show_frame] cleared placeholder cache")
                 
                 if profile_pic:
                     try:
                         img_small = load_image(profile_pic, size=(28, 28), circle=True)
-                    except Exception:
-                        img_small = None
-                    try:
                         img_large = load_image(profile_pic, size=(180, 180), circle=True)
-                    except Exception:
+                        print(f"[show_frame] loaded real images")
+                    except Exception as e:
+                        print(f"[show_frame] error loading real images: {e}")
+                        img_small = None
                         img_large = None
+                else:
+                    # Get cached placeholder images (reuse, don't recreate)
+                    img_small = create_placeholder_image(size=(28, 28), text="")
+                    img_large = create_placeholder_image(size=(180, 180), text="No Image")
+                    print(f"[show_frame] created placeholder images")
 
-            # Propagate or clear image on frames regardless of whether uid is set.
-            for f in self.frames.values():
-                # handle small top-bar avatar
-                if hasattr(f, 'profile_pic_lbl'):
-                    try:
-                        w = f.profile_pic_lbl
-                        if img_small:
-                            w.configure(image=img_small, text='')
-                            w.image = img_small
-                        else:
-                            try:
-                                w.configure(image=None, text='')
-                            except Exception:
-                                try:
-                                    w.configure(text='')
-                                except Exception:
-                                    pass
-                            try:
-                                if hasattr(w, 'image'):
-                                    del w.image
-                            except Exception:
-                                try:
-                                    delattr(w, 'image')
-                                except Exception:
-                                    pass
-                    except Exception:
-                        pass
+            # Only update images if they actually changed (profile_pic_changed=True or uid is None)
+            should_update_images = profile_pic_changed if uid else True
+            
+            if should_update_images:
+                print(f"[show_frame] updating images on all frames")
+                # Propagate or clear image on frames
+                for f in self.frames.values():
+                    # handle small top-bar avatar
+                    if hasattr(f, 'profile_pic_lbl'):
+                        try:
+                            w = f.profile_pic_lbl
+                            # Clear old image completely using empty string
+                            w.configure(image="", text='')
+                            # Don't delete the attribute - just let it be reassigned
+                            
+                            # Set new image
+                            if img_small:
+                                w.configure(image=img_small, text='')
+                                w.image = img_small
+                                print(f"[show_frame] set img_small on profile_pic_lbl")
+                            else:
+                                print(f"[show_frame] cleared profile_pic_lbl")
+                        except Exception as e:
+                            print(f"[show_frame] error with profile_pic_lbl: {e}")
 
-                # handle large profile page avatar
-                if hasattr(f, 'img_label'):
-                    try:
-                        w = f.img_label
-                        if img_large:
-                            w.configure(image=img_large, text='')
-                            w.image = img_large
-                        else:
-                            try:
-                                w.configure(image=None, text='')
-                            except Exception:
-                                try:
-                                    w.configure(text='')
-                                except Exception:
-                                    pass
-                            try:
-                                if hasattr(w, 'image'):
-                                    del w.image
-                            except Exception:
-                                try:
-                                    delattr(w, 'image')
-                                except Exception:
-                                    pass
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+                    # handle large profile page avatar
+                    if hasattr(f, 'img_label'):
+                        try:
+                            w = f.img_label
+                            # Clear old image completely using empty string
+                            w.configure(image="", text='')
+                            # Don't delete the attribute - just let it be reassigned
+                            
+                            # Set new image
+                            if img_large:
+                                w.configure(image=img_large, text='')
+                                w.image = img_large
+                                print(f"[show_frame] set img_large on img_label")
+                            else:
+                                print(f"[show_frame] cleared img_label")
+                        except Exception as e:
+                            print(f"[show_frame] error with img_label: {e}")
+        except Exception as e:
+            print(f"[show_frame] outer exception: {e}")
 
 
 if __name__ == "__main__":
