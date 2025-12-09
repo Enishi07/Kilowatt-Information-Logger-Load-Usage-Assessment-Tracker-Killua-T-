@@ -64,7 +64,8 @@ if DB_TYPE == "mysql":
     CREATE TABLE IF NOT EXISTS devices (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
-        watt_per_hour DOUBLE NOT NULL
+        watt_per_hour DOUBLE NOT NULL,
+        user_id INT NULL
     )
     """)
 
@@ -89,6 +90,41 @@ if DB_TYPE == "mysql":
     )
     """)
 
+    # Users table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(150) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        profile_pic VARCHAR(255) NULL,
+        bio TEXT NULL
+    )
+    """)
+
+    # If the DB existed before we added `user_id` columns, ALTER TABLE to add them.
+    try:
+        # devices.user_id
+        cursor.execute("SHOW COLUMNS FROM devices LIKE 'user_id'")
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE devices ADD COLUMN user_id INT NULL")
+
+        # records.user_id (may be missing on older DBs)
+        cursor.execute("SHOW COLUMNS FROM records LIKE 'user_id'")
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE records ADD COLUMN user_id INT NULL")
+        # users.profile_pic and users.bio
+        cursor.execute("SHOW COLUMNS FROM users LIKE 'profile_pic'")
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE users ADD COLUMN profile_pic VARCHAR(255) NULL")
+        cursor.execute("SHOW COLUMNS FROM users LIKE 'bio'")
+        if not cursor.fetchone():
+            cursor.execute("ALTER TABLE users ADD COLUMN bio TEXT NULL")
+    except Exception:
+        # If any of these fail (older MySQL versions, permissions), ignore and continue;
+        # the app will raise clearer errors later when attempting to use the columns.
+        pass
+
     conn.commit()
 
 else:
@@ -102,7 +138,8 @@ else:
     CREATE TABLE IF NOT EXISTS devices (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        watt_per_hour REAL NOT NULL
+        watt_per_hour REAL NOT NULL,
+        user_id INTEGER
     )
     """)
 
@@ -126,6 +163,18 @@ else:
         duration_minutes REAL,
         kwh_used REAL,
         cost REAL
+    )
+    """)
+
+    # Users table (SQLite)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now')),
+        profile_pic TEXT,
+        bio TEXT
     )
     """)
 

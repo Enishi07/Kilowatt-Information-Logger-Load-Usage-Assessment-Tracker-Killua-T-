@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from tkinter import messagebox
 from database.db import conn, cursor
+from .assets import get_logo
 
 
 class DevicesPage(ctk.CTkFrame):
@@ -14,11 +15,23 @@ class DevicesPage(ctk.CTkFrame):
         menu_btn = ctk.CTkButton(top, text="☰", width=40, height=30)
         menu_btn.pack(side="left", padx=10)
 
-        title = ctk.CTkLabel(top, text="Add / Manage Devices", font=("Arial", 20, "bold"))
-        title.pack(side="top")
+        # Title with logo
+        title_frame = ctk.CTkFrame(top, fg_color="transparent")
+        title_frame.pack(side="left", padx=6)
+        logo_img = get_logo((28, 28))
+        if logo_img:
+            logo_lbl = ctk.CTkLabel(title_frame, image=logo_img, text="")
+            logo_lbl.image = logo_img
+            logo_lbl.pack(side="left", padx=(0, 8))
+        title = ctk.CTkLabel(title_frame, text="Add / Manage Devices", font=("Arial", 20, "bold"))
+        title.pack(side="left")
+
+        # profile pic placeholder on right
+        self.profile_pic_lbl = ctk.CTkLabel(top, text="", width=28, height=28)
+        self.profile_pic_lbl.pack(side="right", padx=10)
 
         back_btn = ctk.CTkButton(top, text="Back",
-                                 width=80, command=lambda: controller.show_frame("HomePage"))
+                     width=80, command=lambda: controller.show_frame("HomePage"))
         back_btn.pack(side="right", padx=12)
 
         # Body layout
@@ -66,15 +79,22 @@ class DevicesPage(ctk.CTkFrame):
         if not name or not watt:
             return messagebox.showerror("Error", "Please fill all fields.")
 
-        cursor.execute("INSERT INTO devices (name, watt_per_hour) VALUES (?, ?)",
-                       (name, float(watt)))
+        # associate device with current user (if any); allow NULL for shared devices
+        user_id = self.controller.current_user_id
+        cursor.execute("INSERT INTO devices (name, watt_per_hour, user_id) VALUES (?, ?, ?)",
+                   (name, float(watt), user_id))
         conn.commit()
 
         self.refresh_devices()
         self.clear_form()
 
     def refresh_devices(self):
-        cursor.execute("SELECT name, watt_per_hour FROM devices")
+        # show devices for the current user and shared devices (user_id IS NULL)
+        user_id = self.controller.current_user_id
+        if user_id:
+            cursor.execute("SELECT name, watt_per_hour FROM devices WHERE user_id = ? OR user_id IS NULL", (user_id,))
+        else:
+            cursor.execute("SELECT name, watt_per_hour FROM devices WHERE user_id IS NULL")
         rows = cursor.fetchall()
 
         self.device_list.delete("1.0", "end")
@@ -85,5 +105,43 @@ class DevicesPage(ctk.CTkFrame):
         # Refresh when the page becomes visible
         try:
             self.refresh_devices()
+        except Exception:
+            pass
+        # update profile pic in top bar
+        try:
+            uid = getattr(self.controller, 'current_user_id', None)
+            if uid:
+                cursor.execute("SELECT profile_pic FROM users WHERE id = ?", (uid,))
+                row = cursor.fetchone()
+                profile_pic = row[0] if row else None
+                if profile_pic:
+                    from .assets import load_image
+                    img = load_image(profile_pic, size=(28, 28), circle=True)
+                    if img and hasattr(self.controller, 'frames'):
+                        # find top-right widget on Home page
+                        try:
+                            home = self.controller.frames.get('HomePage')
+                            if home and hasattr(home, 'profile_pic_lbl'):
+                                home.profile_pic_lbl.configure(image=img, text='')
+                                home.profile_pic_lbl.image = img
+                        except Exception:
+                            pass
+                else:
+                    # No profile image: clear widgets on all pages
+                    try:
+                        if hasattr(self.controller, 'frames'):
+                            for f in self.controller.frames.values():
+                                if hasattr(f, 'profile_pic_lbl'):
+                                    try:
+                                        f.profile_pic_lbl.configure(image=None, text='')
+                                    except Exception:
+                                        pass
+                                    try:
+                                        if hasattr(f.profile_pic_lbl, 'image'):
+                                            del f.profile_pic_lbl.image
+                                    except Exception:
+                                        pass
+                    except Exception:
+                        pass
         except Exception:
             pass

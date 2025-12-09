@@ -2,6 +2,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 from database.db import conn, cursor
 from datetime import datetime
+from .assets import get_logo
 
 
 MERALCO_RATE = 12.64
@@ -18,8 +19,20 @@ class UsagePage(ctk.CTkFrame):
         menu_btn = ctk.CTkButton(top, text="☰", width=40, height=30)
         menu_btn.pack(side="left", padx=10)
 
-        title = ctk.CTkLabel(top, text="Daily Usage Calculator", font=("Arial", 20, "bold"))
-        title.pack(side="top")
+        # Title with logo
+        title_frame = ctk.CTkFrame(top, fg_color="transparent")
+        title_frame.pack(side="left", padx=6)
+        logo_img = get_logo((28, 28))
+        if logo_img:
+            logo_lbl = ctk.CTkLabel(title_frame, image=logo_img, text="")
+            logo_lbl.image = logo_img
+            logo_lbl.pack(side="left", padx=(0, 8))
+        title = ctk.CTkLabel(title_frame, text="Daily Usage Calculator", font=("Arial", 20, "bold"))
+        title.pack(side="left")
+
+        # Right-side profile pic for all pages (updated in on_show)
+        self.profile_pic_lbl = ctk.CTkLabel(top, text="", width=28, height=28)
+        self.profile_pic_lbl.pack(side="right", padx=10)
 
         back_btn = ctk.CTkButton(top, text="Back", width=80,
                                  command=lambda: controller.show_frame("HomePage"))
@@ -89,9 +102,10 @@ class UsagePage(ctk.CTkFrame):
         # Persist the calculation as a record and record_item so RecordsPage can display it
         try:
             today = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            user_id = self.controller.current_user_id
             cursor.execute(
-                "INSERT INTO records (date, total_kwh, total_cost) VALUES (?, ?, ?)",
-                (today, kwh, cost)
+                "INSERT INTO records (date, total_kwh, total_cost, user_id) VALUES (?, ?, ?, ?)",
+                (today, kwh, cost, user_id)
             )
             # lastrowid should be available on both sqlite and mysql connector cursors
             record_id = cursor.lastrowid
