@@ -3,6 +3,7 @@ from pages.home import HomePage
 from pages.devices import DevicesPage
 from pages.usage import UsagePage
 from pages.records import RecordsPage
+from pages.login import LoginPage
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -22,16 +23,23 @@ class KilluaT(ctk.CTk):
         # Initialize pages dict
         self.frames = {}
 
-        for Page in (HomePage, DevicesPage, UsagePage, RecordsPage):
+        for Page in (LoginPage, HomePage, DevicesPage, UsagePage, RecordsPage):
             frame = Page(parent=self.container, controller=self)
             self.frames[Page.__name__] = frame
             frame.grid(row=0, column=0, sticky="nsew")
 
-        self.show_frame("HomePage")
+        # Start at login screen
+        self.show_frame("LoginPage")
 
     def show_frame(self, page_name):
         frame = self.frames[page_name]
         frame.tkraise()
+        # If the page defines an on_show hook, call it so pages can refresh their data
+        if hasattr(frame, "on_show"):
+            try:
+                frame.on_show()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
