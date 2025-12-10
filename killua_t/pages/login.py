@@ -22,12 +22,11 @@ class LoginPage(ctk.CTkFrame):
         left.pack(side="left", padx=(40, 60), pady=10)
         left.pack_propagate(False)
 
-        # Try to load an asset `assets/killua.png` if present, otherwise show placeholder
+        # Prefer the JPG for login screen art; fall back to PNG if missing
         assets_dir = os.path.join(os.path.dirname(__file__), "..", "assets")
-        # accept png or jpg uploaded by user
-        img_path = os.path.normpath(os.path.join(assets_dir, "killua.png"))
+        img_path = os.path.normpath(os.path.join(assets_dir, "killua.jpg"))
         if not os.path.exists(img_path):
-            img_path = os.path.normpath(os.path.join(assets_dir, "killua.jpg"))
+            img_path = os.path.normpath(os.path.join(assets_dir, "killua.png"))
         if os.path.exists(img_path):
             try:
                 pil = Image.open(img_path).resize((420, 420))
@@ -51,22 +50,22 @@ class LoginPage(ctk.CTkFrame):
         spacer = ctk.CTkFrame(right, height=8, fg_color="transparent")
         spacer.pack()
 
-        lbl_user = ctk.CTkLabel(right, text="Username", anchor="w", font=("Arial", 12), text_color="#eaeaea")
+        lbl_user = ctk.CTkLabel(right, text="Username", anchor="w", font=("Arial", 14), text_color="#eaeaea")
         lbl_user.pack(padx=22, pady=(6, 4), fill="x")
         self.entry_user = ctk.CTkEntry(right, placeholder_text="", width=300, fg_color="#ffffff", text_color="#000")
         self.entry_user.pack(padx=22, fill="x")
 
-        lbl_pass = ctk.CTkLabel(right, text="Password", anchor="w", font=("Arial", 12), text_color="#eaeaea")
+        lbl_pass = ctk.CTkLabel(right, text="Password", anchor="w", font=("Arial", 14), text_color="#eaeaea")
         lbl_pass.pack(padx=22, pady=(12, 4), fill="x")
         self.entry_pass = ctk.CTkEntry(right, placeholder_text="", show="*", width=300, fg_color="#ffffff", text_color="#000")
         self.entry_pass.pack(padx=22, fill="x")
 
         # Login button
-        login_btn = ctk.CTkButton(right, text="Login", fg_color="#222222", hover_color="#2e2e2e", width=300, corner_radius=8, command=self.login)
+        login_btn = ctk.CTkButton(right, text="Login", fg_color="#222222", hover_color="#2e2e2e", width=300, corner_radius=8, command=self.login, font=("Arial", 13, "bold"))
         login_btn.pack(padx=22, pady=12)
 
         # Clickable signup hint
-        signup = ctk.CTkLabel(right, text="Don't have an account? Sign up here.", font=("Arial", 10), text_color="#d0d0d0")
+        signup = ctk.CTkLabel(right, text="Don't have an account? Sign up here.", font=("Arial", 12), text_color="#d0d0d0")
         signup.pack(padx=22, pady=(6, 12))
         # Make the label clickable by binding to click event
         signup.bind("<Button-1>", lambda e: self.controller.show_frame("RegistrationPage"))

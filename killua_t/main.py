@@ -3,6 +3,7 @@ from pages.home import HomePage
 from pages.devices import DevicesPage
 from pages.usage import UsagePage
 from pages.records import RecordsPage
+from pages.meralco_rate import MeralcoRatePage
 from pages.login import LoginPage
 from pages.register import RegistrationPage
 from pages.profile import ProfilePage
@@ -21,6 +22,8 @@ class KilluaT(ctk.CTk):
         # Container for switching pages
         self.container = ctk.CTkFrame(self, fg_color="transparent")
         self.container.pack(fill="both", expand=True)
+        self.container.grid_rowconfigure(0, weight=1)
+        self.container.grid_columnconfigure(0, weight=1)
 
         # Track logged-in user
         # `current_user_id` will be set after successful login/register
@@ -30,7 +33,7 @@ class KilluaT(ctk.CTk):
 
         # Initialize pages dict
         self.frames = {}
-        for Page in (LoginPage, RegistrationPage, HomePage, DevicesPage, UsagePage, RecordsPage, ProfilePage):
+        for Page in (LoginPage, RegistrationPage, HomePage, DevicesPage, UsagePage, RecordsPage, MeralcoRatePage, ProfilePage):
             frame = Page(parent=self.container, controller=self)
             self.frames[Page.__name__] = frame
             frame.grid(row=0, column=0, sticky="nsew")

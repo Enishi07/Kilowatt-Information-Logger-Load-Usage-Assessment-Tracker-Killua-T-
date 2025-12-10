@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from database.db import cursor, conn
 from .assets import get_logo
+from .sidebar import Sidebar
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
@@ -11,17 +12,20 @@ class RecordsPage(ctk.CTkFrame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
+        self.sidebar = None
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
         # Top bar
         top = ctk.CTkFrame(self, fg_color="transparent")
         top.pack(fill="x", pady=10)
 
-        menu_btn = ctk.CTkButton(top, text="☰", width=40, height=30)
+        menu_btn = ctk.CTkButton(top, text="☰", width=40, height=30, command=self.show_menu)
         menu_btn.pack(side="left", padx=10)
 
         # Title with logo
         title_frame = ctk.CTkFrame(top, fg_color="transparent")
         title_frame.pack(side="left", padx=6)
-        logo_img = get_logo((28, 28))
+        logo_img = get_logo((36, 36))
         if logo_img:
             logo_lbl = ctk.CTkLabel(title_frame, image=logo_img, text="")
             logo_lbl.image = logo_img
@@ -29,13 +33,13 @@ class RecordsPage(ctk.CTkFrame):
         title = ctk.CTkLabel(title_frame, text="Usage Records", font=("Arial", 20, "bold"))
         title.pack(side="left")
 
+        # Right side: username and profile pic
+        self.user_label = ctk.CTkLabel(top, text="", font=("Arial", 16, "bold"))
+        self.user_label.pack(side="right", padx=10)
+
         # add profile pic placeholder on right
         self.profile_pic_lbl = ctk.CTkLabel(top, text="", width=28, height=28)
-        self.profile_pic_lbl.pack(side="right", padx=10)
-
-        back_btn = ctk.CTkButton(top, text="Back", width=80,
-                                 command=lambda: controller.show_frame("HomePage"))
-        back_btn.pack(side="right", padx=12)
+        self.profile_pic_lbl.pack(side="right", padx=6)
 
         # Main body with two columns: left (records list) and right (graph)
         body = ctk.CTkFrame(self, fg_color="transparent")
@@ -46,7 +50,7 @@ class RecordsPage(ctk.CTkFrame):
         left_col.pack(side="left", fill="both", padx=(0, 20))
         left_col.pack_propagate(False)
 
-        left_title = ctk.CTkLabel(left_col, text="Records", font=("Arial", 14, "bold"), text_color="#c62828")
+        left_title = ctk.CTkLabel(left_col, text="Records", font=("Arial", 16, "bold"), text_color="#c62828")
         left_title.pack(pady=(0, 10))
 
         # Scrollable frame for records
@@ -69,16 +73,28 @@ class RecordsPage(ctk.CTkFrame):
             right_col, 
             text="Refresh Graph", 
             command=self.refresh_records,
-            height=35
+            height=35,
+            fg_color="#4CAF50",
+            hover_color="#45a049"
         )
         refresh_btn.pack(fill="x", pady=(10, 0))
 
     def on_show(self):
         # Refresh records when the page becomes visible
         try:
+            uname = getattr(self.controller, 'current_username', None)
+            if uname:
+                self.user_label.configure(text=uname)
+            else:
+                self.user_label.configure(text="Not logged in")
             self.refresh_records()
         except Exception as e:
             print(f"[RecordsPage] Error in on_show: {e}")
+
+    def show_menu(self):
+        """Show sidebar menu."""
+        if self.sidebar is None or not self.sidebar.winfo_exists():
+            self.sidebar = Sidebar(self, self.controller, on_close=lambda: setattr(self, 'sidebar', None))
 
     def refresh_records(self):
         """Load records from DB and update both list and graph."""
@@ -98,7 +114,7 @@ class RecordsPage(ctk.CTkFrame):
             rows = cursor.fetchall()
 
             if not rows:
-                no_data = ctk.CTkLabel(self.records_container, text="No records found", text_color="gray", font=("Arial", 11))
+                no_data = ctk.CTkLabel(self.records_container, text="No records found", text_color="gray", font=("Arial", 13))
                 no_data.pack(pady=20)
             else:
                 # Display each record with delete button
@@ -121,13 +137,13 @@ class RecordsPage(ctk.CTkFrame):
         info_frame = ctk.CTkFrame(item_frame, fg_color="transparent")
         info_frame.pack(side="left", fill="both", expand=True, padx=10, pady=8)
 
-        date_label = ctk.CTkLabel(info_frame, text=date, font=("Arial", 10, "bold"), text_color="white")
+        date_label = ctk.CTkLabel(info_frame, text=date, font=("Arial", 12, "bold"), text_color="white")
         date_label.pack(anchor="w")
 
-        kwh_label = ctk.CTkLabel(info_frame, text=f"{total_kwh:.2f} kWh", font=("Arial", 9), text_color="cyan")
+        kwh_label = ctk.CTkLabel(info_frame, text=f"{total_kwh:.2f} kWh", font=("Arial", 11), text_color="cyan")
         kwh_label.pack(anchor="w")
 
-        cost_label = ctk.CTkLabel(info_frame, text=f"₱{total_cost:.2f}", font=("Arial", 9), text_color="#4CAF50")
+        cost_label = ctk.CTkLabel(info_frame, text=f"₱{total_cost:.2f}", font=("Arial", 11), text_color="#4CAF50")
         cost_label.pack(anchor="w")
 
         # Delete button
@@ -175,7 +191,7 @@ class RecordsPage(ctk.CTkFrame):
                     self.canvas_frame,
                     text="No data to display",
                     text_color="gray",
-                    font=("Arial", 12)
+                    font=("Arial", 14)
                 )
                 empty_label.pack(expand=True)
                 return
@@ -198,10 +214,10 @@ class RecordsPage(ctk.CTkFrame):
             ax.fill_between(range(len(dates)), kwh_values, alpha=0.3, color="#1976d2")
 
             # Format axes
-            ax.set_xlabel("Date", fontsize=10, color="white")
-            ax.set_ylabel("kWh", fontsize=10, color="white")
+            ax.set_xlabel("Date", fontsize=12, color="white")
+            ax.set_ylabel("kWh", fontsize=12, color="white")
             ax.set_xticks(range(len(dates)))
-            ax.set_xticklabels(dates, rotation=45, ha='right', fontsize=8, color="white")
+            ax.set_xticklabels(dates, rotation=45, ha='right', fontsize=10, color="white")
             ax.tick_params(axis='y', labelcolor='white')
             ax.grid(True, alpha=0.2, color="white")
 

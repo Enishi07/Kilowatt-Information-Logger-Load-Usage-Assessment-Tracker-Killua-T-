@@ -7,6 +7,7 @@ import sqlite3
 # MySQL connection env vars (see README instructions).
 
 DB_TYPE = os.getenv("KILLUA_DB_TYPE", "mysql").lower()
+DEFAULT_MERALCO_RATE = float(os.getenv("DEFAULT_MERALCO_RATE", "12.64"))
 
 if DB_TYPE == "mysql":
     # Lazy import of MySQL module to avoid requiring it for SQLite usage
@@ -102,6 +103,17 @@ if DB_TYPE == "mysql":
     )
     """)
 
+    # Meralco rate history
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS meralco_rates (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            rate DOUBLE NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
     # If the DB existed before we added `user_id` columns, ALTER TABLE to add them.
     try:
         # devices.user_id
@@ -120,12 +132,22 @@ if DB_TYPE == "mysql":
         cursor.execute("SHOW COLUMNS FROM users LIKE 'bio'")
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE users ADD COLUMN bio TEXT NULL")
+
     except Exception:
         # If any of these fail (older MySQL versions, permissions), ignore and continue;
         # the app will raise clearer errors later when attempting to use the columns.
         pass
 
     conn.commit()
+
+    # Seed default rate if missing
+    try:
+        cursor.execute("SELECT rate FROM meralco_rates ORDER BY created_at DESC LIMIT 1")
+        if not cursor.fetchone():
+            cursor.execute("INSERT INTO meralco_rates (rate) VALUES (%s)", (DEFAULT_MERALCO_RATE,))
+            conn.commit()
+    except Exception:
+        pass
 
 else:
     # SQLite (default)
@@ -178,4 +200,65 @@ else:
     )
     """)
 
+    # Meralco rate history (SQLite)
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS meralco_rates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            rate REAL NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+        """
+    )
+
     conn.commit()
+
+    # Seed default rate if missing
+    cursor.execute("SELECT rate FROM meralco_rates ORDER BY created_at DESC LIMIT 1")
+    row = cursor.fetchone()
+    if not row:
+        cursor.execute("INSERT INTO meralco_rates (rate) VALUES (?)", (DEFAULT_MERALCO_RATE,))
+        conn.commit()
+
+
+def get_current_rate(default: float = DEFAULT_MERALCO_RATE) -> float:
+    """Return the latest stored Meralco rate, falling back to default if none exists."""
+    try:
+        cursor.execute("SELECT rate FROM meralco_rates ORDER BY created_at DESC LIMIT 1")
+        row = cursor.fetchone()
+        if row and row[0] is not None:
+            return float(row[0])
+    except Exception:
+        pass
+    return float(default)
+
+
+def add_meralco_rate(rate: float):
+    """Insert a new Meralco rate entry."""
+    try:
+        cursor.execute("INSERT INTO meralco_rates (rate) VALUES (?)", (float(rate),))
+        conn.commit()
+    except Exception:
+        # For MySQL, placeholders already translated by wrapper
+        try:
+            cursor.execute("INSERT INTO meralco_rates (rate) VALUES (?)", (float(rate),))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+
+def get_rate_history(limit: int = 50):
+    """Return (created_at, rate) tuples ordered oldest->newest."""
+    try:
+        cursor.execute(
+            "SELECT created_at, rate FROM meralco_rates ORDER BY created_at ASC LIMIT ?",
+            (int(limit),),
+        )
+        return cursor.fetchall()
+    except Exception:
+        try:
+            # MySQL LIMIT cannot be parameterized the same way; fallback to formatting
+            cursor.execute(f"SELECT created_at, rate FROM meralco_rates ORDER BY created_at ASC LIMIT {int(limit)}")
+            return cursor.fetchall()
+        except Exception:
+            return []

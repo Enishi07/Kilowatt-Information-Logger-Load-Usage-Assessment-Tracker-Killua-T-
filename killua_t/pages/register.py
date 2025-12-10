@@ -22,9 +22,10 @@ class RegistrationPage(ctk.CTkFrame):
         left.pack_propagate(False)
 
         assets_dir = os.path.join(os.path.dirname(__file__), "..", "assets")
-        img_path = os.path.normpath(os.path.join(assets_dir, "killua.png"))
+        # Prefer the JPG on registration; fall back to PNG if missing
+        img_path = os.path.normpath(os.path.join(assets_dir, "killua.jpg"))
         if not os.path.exists(img_path):
-            img_path = os.path.normpath(os.path.join(assets_dir, "killua.jpg"))
+            img_path = os.path.normpath(os.path.join(assets_dir, "killua.png"))
         if os.path.exists(img_path):
             try:
                 pil = Image.open(img_path).resize((420, 420))
@@ -43,25 +44,25 @@ class RegistrationPage(ctk.CTkFrame):
         right.pack(side="left", pady=10)
         right.pack_propagate(False)
 
-        lbl_user = ctk.CTkLabel(right, text="Username", anchor="w", font=("Arial", 12), text_color="#eaeaea")
+        lbl_user = ctk.CTkLabel(right, text="Username", anchor="w", font=("Arial", 14), text_color="#eaeaea")
         lbl_user.pack(padx=22, pady=(16, 4), fill="x")
         self.entry_user = ctk.CTkEntry(right, placeholder_text="", width=300, fg_color="#ffffff", text_color="#000")
         self.entry_user.pack(padx=22, fill="x")
 
-        lbl_pass = ctk.CTkLabel(right, text="Password", anchor="w", font=("Arial", 12), text_color="#eaeaea")
+        lbl_pass = ctk.CTkLabel(right, text="Password", anchor="w", font=("Arial", 14), text_color="#eaeaea")
         lbl_pass.pack(padx=22, pady=(12, 4), fill="x")
         self.entry_pass = ctk.CTkEntry(right, placeholder_text="", show="*", width=300, fg_color="#ffffff", text_color="#000")
         self.entry_pass.pack(padx=22, fill="x")
 
-        lbl_pass2 = ctk.CTkLabel(right, text="Confirm Password", anchor="w", font=("Arial", 12), text_color="#eaeaea")
+        lbl_pass2 = ctk.CTkLabel(right, text="Confirm Password", anchor="w", font=("Arial", 14), text_color="#eaeaea")
         lbl_pass2.pack(padx=22, pady=(12, 4), fill="x")
         self.entry_pass2 = ctk.CTkEntry(right, placeholder_text="", show="*", width=300, fg_color="#ffffff", text_color="#000")
         self.entry_pass2.pack(padx=22, fill="x")
 
-        reg_btn = ctk.CTkButton(right, text="Create Account", width=300, corner_radius=8, command=self.register)
+        reg_btn = ctk.CTkButton(right, text="Create Account", width=300, corner_radius=8, command=self.register, font=("Arial", 13, "bold"))
         reg_btn.pack(padx=22, pady=18)
 
-        back = ctk.CTkButton(right, text="Back to Login", width=200, command=lambda: controller.show_frame("LoginPage"))
+        back = ctk.CTkButton(right, text="Back to Login", width=200, command=lambda: controller.show_frame("LoginPage"), font=("Arial", 12, "bold"))
         back.pack(padx=22)
 
     def register(self):
