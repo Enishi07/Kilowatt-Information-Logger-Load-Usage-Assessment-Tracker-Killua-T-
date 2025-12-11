@@ -173,3 +173,56 @@ class MeralcoRatePage(ctk.CTkFrame):
         self.canvas = FigureCanvasTkAgg(self.figure, master=self.canvas_frame)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
+
+        # Add hover tooltip support
+        self.annotate = None
+        self.canvas.mpl_connect("motion_notify_event", lambda event: self.on_hover(event, ax, rates, labels))
+
+    def on_hover(self, event, ax, rates, labels):
+        """Show tooltip on hover over graph points."""
+        if event.inaxes != ax:
+            if self.annotate:
+                self.annotate.remove()
+                self.annotate = None
+            self.canvas.draw_idle()
+            return
+
+        # Find closest point to cursor
+        if not event.xdata or not event.ydata:
+            return
+
+        x_pos = event.xdata
+        y_pos = event.ydata
+
+        # Snap to nearest data point if close enough
+        distances = [abs(i - x_pos) for i in range(len(rates))]
+        min_dist_idx = min(range(len(distances)), key=lambda i: distances[i])
+        min_dist = distances[min_dist_idx]
+
+        # Show tooltip if within ~0.5 units horizontally
+        if min_dist < 0.5:
+            rate_val = rates[min_dist_idx]
+            date_label = labels[min_dist_idx]
+
+            # Remove old annotation
+            if self.annotate:
+                self.annotate.remove()
+
+            # Add new annotation at the data point
+            self.annotate = ax.annotate(
+                f"₱{rate_val:.2f}\n{date_label}",
+                xy=(min_dist_idx, rate_val),
+                xytext=(10, 10),
+                textcoords="offset points",
+                bbox=dict(boxstyle="round,pad=0.5", facecolor="#333333", edgecolor="#ffa000", alpha=0.9),
+                arrowprops=dict(arrowstyle="->", color="#ffa000", lw=1.5),
+                fontsize=10,
+                color="white",
+            )
+            self.canvas.draw_idle()
+        else:
+            # Remove annotation if too far
+            if self.annotate:
+                self.annotate.remove()
+                self.annotate = None
+                self.canvas.draw_idle()
