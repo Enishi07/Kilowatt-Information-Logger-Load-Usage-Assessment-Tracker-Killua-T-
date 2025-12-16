@@ -1,16 +1,13 @@
 import os
-import sqlite3
-
-# Switchable DB driver: default is MySQL (use SQLite as a backup).
-# To force SQLite set environment variable `KILLUA_DB_TYPE=sqlite`.
+# Database connection and setup for Killua-T application.
+# Supports MySQL as the backend database.
 # To use MySQL explicitly set `KILLUA_DB_TYPE=mysql` and configure the
-# MySQL connection env vars (see README instructions).
+# MySQL connection env vars as needed.
 
-DB_TYPE = os.getenv("KILLUA_DB_TYPE", "mysql").lower()
+DB_TYPE = "mysql"
 DEFAULT_MERALCO_RATE = float(os.getenv("DEFAULT_MERALCO_RATE", "12.64"))
 
 if DB_TYPE == "mysql":
-    # Lazy import of MySQL module to avoid requiring it for SQLite usage
     try:
         import mysql.connector
     except Exception as e:
@@ -150,75 +147,7 @@ if DB_TYPE == "mysql":
         pass
 
 else:
-    # SQLite (default)
-    DB_FILE = os.getenv("KILLUA_SQLITE_FILE", os.path.join(os.path.dirname(__file__), "..", "killua_t.db"))
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-
-    # Devices table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS devices (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        watt_per_hour REAL NOT NULL,
-        user_id INTEGER
-    )
-    """)
-
-    # Daily records summary
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS records (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        date TEXT NOT NULL,
-        total_kwh REAL,
-        total_cost REAL
-    )
-    """)
-
-    # Detailed items inside a record
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS record_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        record_id INTEGER,
-        device_name TEXT,
-        watt_per_hour REAL,
-        duration_minutes REAL,
-        kwh_used REAL,
-        cost REAL
-    )
-    """)
-
-    # Users table (SQLite)
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL UNIQUE,
-        password_hash TEXT NOT NULL,
-        created_at TEXT DEFAULT (datetime('now')),
-        profile_pic TEXT,
-        bio TEXT
-    )
-    """)
-
-    # Meralco rate history (SQLite)
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS meralco_rates (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            rate REAL NOT NULL,
-            created_at TEXT DEFAULT (datetime('now'))
-        )
-        """
-    )
-
-    conn.commit()
-
-    # Seed default rate if missing
-    cursor.execute("SELECT rate FROM meralco_rates ORDER BY created_at DESC LIMIT 1")
-    row = cursor.fetchone()
-    if not row:
-        cursor.execute("INSERT INTO meralco_rates (rate) VALUES (?)", (DEFAULT_MERALCO_RATE,))
-        conn.commit()
+    raise RuntimeError("This build is configured for MySQL only.")
 
 
 def get_current_rate(default: float = DEFAULT_MERALCO_RATE) -> float:
@@ -234,31 +163,20 @@ def get_current_rate(default: float = DEFAULT_MERALCO_RATE) -> float:
 
 
 def add_meralco_rate(rate: float):
-    """Insert a new Meralco rate entry."""
+    """Insert a new Meralco rate entry (MySQL)."""
     try:
-        cursor.execute("INSERT INTO meralco_rates (rate) VALUES (?)", (float(rate),))
+        cursor.execute("INSERT INTO meralco_rates (rate) VALUES (%s)", (float(rate),))
         conn.commit()
     except Exception:
-        # For MySQL, placeholders already translated by wrapper
-        try:
-            cursor.execute("INSERT INTO meralco_rates (rate) VALUES (?)", (float(rate),))
-            conn.commit()
-        except Exception:
-            conn.rollback()
+        conn.rollback()
 
 
 def get_rate_history(limit: int = 50):
     """Return (created_at, rate) tuples ordered oldest->newest."""
     try:
-        cursor.execute(
-            "SELECT created_at, rate FROM meralco_rates ORDER BY created_at ASC LIMIT ?",
-            (int(limit),),
-        )
+        # MySQL connector may not support parameter for LIMIT; format safely
+        lim = int(limit)
+        cursor.execute(f"SELECT created_at, rate FROM meralco_rates ORDER BY created_at ASC LIMIT {lim}")
         return cursor.fetchall()
     except Exception:
-        try:
-            # MySQL LIMIT cannot be parameterized the same way; fallback to formatting
-            cursor.execute(f"SELECT created_at, rate FROM meralco_rates ORDER BY created_at ASC LIMIT {int(limit)}")
-            return cursor.fetchall()
-        except Exception:
-            return []
+        return []

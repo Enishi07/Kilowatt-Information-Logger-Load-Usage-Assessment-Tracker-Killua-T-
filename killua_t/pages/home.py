@@ -42,7 +42,7 @@ class HomePage(ctk.CTkFrame):
         left_col.pack(side="left", anchor="n", padx=(10, 40), pady=20)
 
         # Action buttons styled similar to the design
-        btn_devices = ctk.CTkButton(left_col, text="Add Electronic Device",
+        btn_devices = ctk.CTkButton(left_col, text="Manage Devices",
                         width=180, command=lambda: controller.show_frame("DevicesPage"))
         btn_devices.pack(pady=12)
 

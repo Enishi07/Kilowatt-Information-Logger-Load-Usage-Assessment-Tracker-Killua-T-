@@ -53,7 +53,7 @@ class Sidebar(ctk.CTkToplevel):
         menu_items = [
             ("Home", "HomePage"),
             ("Daily Usage", "UsagePage"),
-            ("Add / Manage Devices", "DevicesPage"),
+            ("Manage Devices", "DevicesPage"),
             ("View Records", "RecordsPage"),
             ("MERALCO Rate", "MeralcoRatePage"),
             ("Profile", "ProfilePage"),
