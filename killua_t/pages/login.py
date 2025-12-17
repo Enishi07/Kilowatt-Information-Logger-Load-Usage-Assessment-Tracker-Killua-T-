@@ -73,7 +73,19 @@ class LoginPage(ctk.CTkFrame):
     def login(self):
         username = self.entry_user.get().strip()
         pw = self.entry_pass.get()
-        if not username or not pw:
+        
+        # Data validation for missing fields
+        if not username and not pw:
+            from tkinter import messagebox
+            messagebox.showerror("Validation Error", "Please enter both Username and Password.")
+            return
+        elif not username:
+            from tkinter import messagebox
+            messagebox.showerror("Validation Error", "Please enter your Username.")
+            return
+        elif not pw:
+            from tkinter import messagebox
+            messagebox.showerror("Validation Error", "Please enter your Password.")
             return
 
         import hashlib
